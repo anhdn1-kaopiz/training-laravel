@@ -8,3 +8,4 @@ Route::get('/', function () {
 });
 
 Route::get('/practice-db', [TestDbController::class, 'practiceDb']);
+Route::get('/practice-eloquent', [TestDbController::class, 'practiceEloquent']);
