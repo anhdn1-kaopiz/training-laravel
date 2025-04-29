@@ -4,21 +4,24 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Models\Post;
-use App\Models\User;
+use App\Services\PostService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class PostController extends Controller
 {
     use AuthorizesRequests;
 
+    public function __construct(
+        private readonly PostService $postService
+    ) {}
+
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        $posts = Post::with('user', 'categories')->latest()->paginate(10);
+        $posts = $this->postService->getAllWithPaginate();
         return view('posts.index', compact('posts'));
     }
 
@@ -42,16 +45,7 @@ class PostController extends Controller
             'categories' => 'nullable|array',
         ]);
 
-        // create Post
-        $post = new Post();
-        $post->user_id = Auth::user()->id;
-        $post->title = $validatedData['title'];
-        $post->content = $validatedData['content'];
-        $post->save();
-
-        if (!empty($validatedData['categories'])) {
-            $post->categories()->attach($validatedData['categories']);
-        }
+        $this->postService->create($validatedData);
 
         return redirect()->route('posts.index')
             ->with('status', 'Bài viết đã được tạo thành công!');
@@ -62,8 +56,7 @@ class PostController extends Controller
      */
     public function show(Post $post)
     {
-
-        $post->load('user', 'categories');
+        $post = $this->postService->findById($post->id);
         return view('posts.show', compact('post'));
     }
 
@@ -72,6 +65,8 @@ class PostController extends Controller
      */
     public function edit(Post $post)
     {
+        $this->authorize('update', $post);
+
         $categories = Category::orderBy('name')->get();
         $postCategoryIds = $post->categories->pluck('id')->toArray();
 
@@ -84,6 +79,7 @@ class PostController extends Controller
     public function update(Request $request, Post $post)
     {
         $this->authorize('update', $post);
+
         $validatedData = $request->validate([
             'title' => 'required|string|max:255',
             'content' => 'required|string',
@@ -91,12 +87,7 @@ class PostController extends Controller
             'categories.*' => 'exists:categories,id'
         ]);
 
-        // update Post
-        $post->title = $validatedData['title'];
-        $post->content = $validatedData['content'];
-        $post->save();
-
-        $post->categories()->sync($validatedData['categories'] ?? []);
+        $this->postService->update($post, $validatedData);
 
         return redirect()->route('posts.index')
             ->with('status', 'Bài viết đã được cập nhật thành công!');
@@ -107,9 +98,9 @@ class PostController extends Controller
      */
     public function destroy(Post $post)
     {
-        $this->authorize('update', $post);
-        $post->categories()->detach();
-        $post->delete();
+        $this->authorize('delete', $post);
+
+        $this->postService->delete($post);
 
         return redirect()->route('posts.index')
             ->with('status', 'Bài viết đã được xóa thành công!');
