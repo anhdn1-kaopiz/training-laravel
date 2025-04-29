@@ -7,9 +7,12 @@ use App\Models\Post;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class PostController extends Controller
 {
+    use AuthorizesRequests;
+
     /**
      * Display a listing of the resource.
      */
@@ -39,13 +42,9 @@ class PostController extends Controller
             'categories' => 'nullable|array',
         ]);
 
-        //random user id
-        $randomUser = User::inRandomOrder()->first();
-        $randomUserId = $randomUser->id;
-
         // create Post
         $post = new Post();
-        $post->user_id = $randomUserId;
+        $post->user_id = Auth::user()->id;
         $post->title = $validatedData['title'];
         $post->content = $validatedData['content'];
         $post->save();
@@ -55,7 +54,7 @@ class PostController extends Controller
         }
 
         return redirect()->route('posts.index')
-                         ->with('status', 'Bài viết đã được tạo thành công!');
+            ->with('status', 'Bài viết đã được tạo thành công!');
     }
 
     /**
@@ -63,7 +62,7 @@ class PostController extends Controller
      */
     public function show(Post $post)
     {
-        
+
         $post->load('user', 'categories');
         return view('posts.show', compact('post'));
     }
@@ -84,6 +83,7 @@ class PostController extends Controller
      */
     public function update(Request $request, Post $post)
     {
+        $this->authorize('update', $post);
         $validatedData = $request->validate([
             'title' => 'required|string|max:255',
             'content' => 'required|string',
@@ -99,7 +99,7 @@ class PostController extends Controller
         $post->categories()->sync($validatedData['categories'] ?? []);
 
         return redirect()->route('posts.index')
-                         ->with('status', 'Bài viết đã được cập nhật thành công!');
+            ->with('status', 'Bài viết đã được cập nhật thành công!');
     }
 
     /**
@@ -107,10 +107,11 @@ class PostController extends Controller
      */
     public function destroy(Post $post)
     {
+        $this->authorize('update', $post);
         $post->categories()->detach();
         $post->delete();
 
         return redirect()->route('posts.index')
-                         ->with('status', 'Bài viết đã được xóa thành công!');
+            ->with('status', 'Bài viết đã được xóa thành công!');
     }
 }
