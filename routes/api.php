@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use App\Http\Controllers\Api\PostController;
 
 /*
 |--------------------------------------------------------------------------
@@ -30,7 +31,6 @@ Route::post('/login', function (Request $request) {
     $token = $user->createToken($request->device_name)->plainTextToken;
 
     return response()->json(['token' => $token]);
-
 })->name('api.login');
 
 
@@ -38,14 +38,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
-    Route::post('/logout', function(Request $request){
+    Route::post('/logout', function (Request $request) {
         $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Logged out successfully']);
-        })->name('api.logout'); 
-    Route::get('/posts', function(Request $request){
+    })->name('api.logout');
+    Route::get('/posts', function (Request $request) {
         $posts = \App\Models\Post::with('user:id,name', 'categories:id,name')
-                                    ->latest()
-                                    ->paginate(5);
+            ->latest()
+            ->paginate(5);
         return response()->json($posts);
     });
+});
+
+Route::prefix('v1')->group(function () {
+    Route::apiResource('posts', PostController::class);
 });
